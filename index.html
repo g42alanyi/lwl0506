@@ -1,140 +1,251 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<title>Knock Knock 🎄</title>
-<style>
-  body {
-    margin: 0;
-    height: 100vh;
-    background: #1b1b1b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: system-ui;
-    overflow: hidden;
-  }
-
-  /* ====== Door Scene ====== */
-  #doorScene {
-    cursor: pointer;
-    text-align: center;
-    color: white;
-  }
-
-  .door {
-    width: 200px;
-    height: 300px;
-    background: #5b3a29;
-    border-radius: 6px;
-    position: relative;
-    animation: knock 1s infinite;
-  }
-
-  .knob {
-    width: 20px;
-    height: 20px;
-    background: gold;
-    border-radius: 50%;
-    position: absolute;
-    right: 20px;
-    top: 150px;
-  }
-
-  .cat {
-    font-size: 48px;
-    margin-top: 10px;
-    animation: paw 1s infinite;
-  }
-
-  @keyframes knock {
-    0%,100% { transform: rotate(0deg); }
-    50% { transform: rotate(-2deg); }
-  }
-
-  @keyframes paw {
-    0%,100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
-  }
-
-  /* ====== Snow Scene ====== */
-  #snowScene {
-    display: none;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(#00111f, #003);
-    position: relative;
-    color: white;
-  }
-
-  .tree {
-    font-size: 120px;
-    position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .snow {
-    position: absolute;
-    top: -10px;
-    color: white;
-    font-size: 14px;
-    animation: fall linear infinite;
-  }
-
-  @keyframes fall {
-    to {
-      transform: translateY(110vh);
-    }
-  }
-
-  .text {
-    position: absolute;
-    top: 40px;
-    width: 100%;
-    text-align: center;
-    font-size: 28px;
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>3D Metal Christmas Tree</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #050505; font-family: "Times New Roman", serif; }
+        #instructions {
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            color: #d4af37; font-size: 24px; pointer-events: none; text-shadow: 0 0 10px rgba(212,175,55,0.5);
+        }
+        #audio-hint {
+            position: absolute; bottom: 20px; left: 20px; color: #fff; cursor: pointer;
+            border: 1px solid #fff; padding: 10px; border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
 
-<!-- Door -->
-<div id="doorScene" onclick="openDoor()">
-  <div class="door">
-    <div class="knob"></div>
-  </div>
-  <div class="cat">🐱 knock knock</div>
-  <p>（點門打開）</p>
-</div>
+<div id="instructions">Merry Christmas to 鐵鐵</div>
+<div id="audio-hint" onclick="playMusic()">🎵 點擊啟動音樂與特效</div>
 
-<!-- Snow -->
-<div id="snowScene">
-  <div class="text">Merry Christmas ❄️</div>
-  <div class="tree">🎄</div>
-</div>
-
-<script>
-function openDoor() {
-  document.getElementById("doorScene").style.display = "none";
-  document.getElementById("snowScene").style.display = "block";
-  makeSnow();
-}
-
-function makeSnow() {
-  for (let i = 0; i < 50; i++) {
-    const snow = document.createElement("div");
-    snow.className = "snow";
-    snow.innerHTML = "❄️";
-    snow.style.left = Math.random() * 100 + "vw";
-    snow.style.animationDuration = 3 + Math.random() * 5 + "s";
-    snow.style.opacity = Math.random();
-    document.getElementById("snowScene").appendChild(snow);
-  }
-}
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
 </script>
 
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import gsap from 'https://cdn.skypack.dev/gsap';
+
+// --- 初始化場景 ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.toneMapping = THREE.ReinhardToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+camera.position.set(0, 15, 30);
+
+// --- 光源 (PBR 關鍵) ---
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 500);
+pointLight.position.set(10, 20, 10);
+scene.add(pointLight);
+
+const goldLight = new THREE.PointLight(0xd4af37, 300);
+goldLight.position.set(-10, 5, -10);
+scene.add(goldLight);
+
+// --- 參數設置 ---
+const COUNT = 4000; // 總幾何體數量
+const dummy = new THREE.Object3D();
+let currentState = 'tree'; // tree, scatter, text
+
+// 材質定義
+const goldMat = new THREE.MeshStandardMaterial({ color: 0xD4AF37, metalness: 1, roughness: 0.2 });
+const redMat = new THREE.MeshStandardMaterial({ color: 0xAA0000, metalness: 0.8, roughness: 0.3 });
+const greenMat = new THREE.MeshStandardMaterial({ color: 0x003300, metalness: 0.7, roughness: 0.4 });
+
+// --- 創建 InstancedMesh ---
+// 我們混合球體和立方體，這裡簡化使用一個 Mesh，或可創建兩個單獨的 Instance
+const sphereGeo = new THREE.SphereGeometry(0.15, 12, 12);
+const boxGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+
+const instMesh = new THREE.InstancedMesh(sphereGeo, goldMat, COUNT);
+scene.add(instMesh);
+
+// 存儲位置數據
+const treePos = [];
+const textPos = [];
+const scatterPos = [];
+
+// --- 生成聖誕樹座標 ---
+for (let i = 0; i < COUNT; i++) {
+    const ratio = i / COUNT;
+    const height = ratio * 20;
+    const radius = (1 - ratio) * 8;
+    const angle = i * 0.5;
+    
+    const x = Math.cos(angle) * radius * Math.random();
+    const z = Math.sin(angle) * radius * Math.random();
+    const y = height - 5;
+    
+    treePos.push(new THREE.Vector3(x, y, z));
+    
+    // 設置初始顏色
+    let color = new THREE.Color();
+    if (i % 3 === 0) color.setHex(0xD4AF37); // 金
+    else if (i % 3 === 1) color.setHex(0xAA0000); // 紅
+    else color.setHex(0x004400); // 綠
+    instMesh.setColorAt(i, color);
+}
+
+// --- 生成文字座標 (Canvas 採樣) ---
+function createTextCoords() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1000;
+    canvas.height = 200;
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 60px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Merry Christmas to 鐵鐵', 500, 100);
+    
+    const imageData = ctx.getImageData(0, 0, 1000, 200).data;
+    const points = [];
+    for (let y = 0; y < 200; y += 4) {
+        for (let x = 0; x < 1000; x += 4) {
+            if (imageData[(y * 1000 + x) * 4] > 128) {
+                points.push(new THREE.Vector3((x - 500) * 0.05, (100 - y) * 0.05 + 5, 0));
+            }
+        }
+    }
+    // 填充到 COUNT 數量
+    for (let i = 0; i < COUNT; i++) {
+        textPos.push(points[i % points.length] || new THREE.Vector3(0,0,0));
+    }
+}
+createTextCoords();
+
+// --- 樹頂裝飾 (八面體) ---
+const topGeo = new THREE.OctahedronGeometry(1);
+const topMat = new THREE.MeshStandardMaterial({ color: 0xFFFF00, emissive: 0xFFAA00, metalness: 1 });
+const topDecor = new THREE.Mesh(topGeo, topMat);
+topDecor.position.y = 15.5;
+scene.add(topDecor);
+
+// --- 動態更新函數 ---
+function updateMesh(positions) {
+    for (let i = 0; i < COUNT; i++) {
+        const target = positions[i];
+        dummy.position.copy(target);
+        dummy.updateMatrix();
+        instMesh.setMatrixAt(i, dummy.matrix);
+    }
+    instMesh.instanceMatrix.needsUpdate = true;
+}
+
+// 初始顯示樹
+updateMesh(treePos);
+
+// --- 交互邏輯 ---
+window.addEventListener('click', () => {
+    if (currentState === 'tree') {
+        // 擴散
+        const scatter = treePos.map(p => p.clone().add(new THREE.Vector3(
+            (Math.random() - 0.5) * 20,
+            (Math.random() - 0.5) * 20,
+            (Math.random() - 0.5) * 20
+        )));
+        animateTo(scatter);
+        currentState = 'scatter';
+    } else if (currentState === 'scatter') {
+        // 拼成文字
+        animateTo(textPos);
+        currentState = 'text';
+    } else {
+        // 恢復
+        animateTo(treePos);
+        currentState = 'tree';
+    }
+});
+
+function animateTo(targetArray) {
+    const obj = { t: 0 };
+    const startPos = [];
+    const currentMatrix = new THREE.Matrix4();
+    
+    for(let i=0; i<COUNT; i++) {
+        instMesh.getMatrixAt(i, currentMatrix);
+        let pos = new THREE.Vector3();
+        pos.setFromMatrixPosition(currentMatrix);
+        startPos.push(pos);
+    }
+
+    gsap.to(obj, {
+        t: 1,
+        duration: 2,
+        ease: "power2.inOut",
+        onUpdate: () => {
+            for (let i = 0; i < COUNT; i++) {
+                const lerpedPos = new THREE.Vector3().lerpVectors(startPos[i], targetArray[i], obj.t);
+                dummy.position.copy(lerpedPos);
+                // 增加一點隨機旋轉增加金屬反光感
+                dummy.rotation.x += 0.01;
+                dummy.updateMatrix();
+                instMesh.setMatrixAt(i, dummy.matrix);
+            }
+            instMesh.instanceMatrix.needsUpdate = true;
+        }
+    });
+}
+
+// --- 音樂處理 ---
+const listener = new THREE.AudioListener();
+camera.add(listener);
+const sound = new THREE.Audio(listener);
+const audioLoader = new THREE.AudioLoader();
+
+// 這裡建議使用一個公開的聖誕歌曲連結，或是你本地的 mp3
+function playMusic() {
+    if (!sound.isPlaying) {
+        audioLoader.load('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', function(buffer) {
+            sound.setBuffer(buffer);
+            sound.setLoop(true);
+            sound.setVolume(0.5);
+            sound.play();
+        });
+        document.getElementById('audio-hint').style.display = 'none';
+    }
+}
+
+// --- 渲染迴圈 ---
+function animate() {
+    requestAnimationFrame(animate);
+    
+    // 聖誕樹自轉
+    if (currentState === 'tree') {
+        instMesh.rotation.y += 0.005;
+        topDecor.rotation.y += 0.01;
+    } else {
+        instMesh.rotation.y *= 0.95; // 停止旋轉
+    }
+    
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
+
+// 視窗縮放適應
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
 </body>
 </html>
 
