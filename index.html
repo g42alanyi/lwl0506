@@ -3,45 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arix Signature Christmas 2025</title>
+    <title>Arix Christmas: The Cat & The Tree</title>
     <style>
-        body { margin: 0; background-color: #010805; overflow: hidden; font-family: 'Times New Roman', serif; }
-        #ui { position: absolute; top: 10%; width: 100%; text-align: center; color: #FFD700; pointer-events: none; }
-        h1 { font-size: 2.5rem; letter-spacing: 5px; margin: 0; text-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
-        p { font-size: 1rem; opacity: 0.8; letter-spacing: 2px; }
+        body { margin: 0; background: #010805; overflow: hidden; font-family: serif; }
+        
+        /* 門的容器 */
+        #door-scene {
+            position: absolute; width: 100vw; height: 100vh;
+            z-index: 100; display: flex; justify-content: center; align-items: center;
+            background: #000; transition: opacity 1s ease-in-out;
+        }
+
+        /* 3D 門的樣式 */
+        .door-container {
+            position: relative; width: 300px; height: 500px;
+            perspective: 1200px; cursor: pointer;
+        }
+
+        .door {
+            position: absolute; width: 100%; height: 100%;
+            background: #3d2314; border: 5px solid #FFD700;
+            box-sizing: border-box; transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: left; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; box-shadow: 0 0 50px rgba(0,0,0,1);
+        }
+
+        /* 門上的裝飾 */
+        .door::after {
+            content: "Knock Me"; position: absolute; bottom: 20px;
+            color: #FFD700; font-size: 14px; letter-spacing: 2px;
+        }
+
+        /* 小貓 (用可愛文字或 Emoji 代替，你可以換成 <img>) */
+        .cat { font-size: 80px; margin-bottom: 20px; transition: transform 0.3s; }
+        .door:hover .cat { transform: scale(1.1); }
+
+        /* 門開啟的動作 */
+        .door.open { transform: rotateY(-110deg); }
+
+        /* 背景隱藏 */
+        .fade-out { opacity: 0; pointer-events: none; }
+
+        #three-container { width: 100vw; height: 100vh; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <h1>ARIX SIGNATURE</h1>
-        <p>Interactive Christmas Experience</p>
+    <div id="door-scene">
+        <div class="door-container" onclick="openDoor()">
+            <div id="main-door" class="door">
+                <div class="cat">🐱</div>
+                <div style="color:#FFD700; font-size:24px;">ARIX</div>
+                <div style="color:#FFD700; font-size:12px; margin-top:10px;">SIGNATURE</div>
+            </div>
+        </div>
     </div>
 
-    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    <div id="three-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+
+    <script>
+        // --- 門的邏輯 ---
+        function openDoor() {
+            const door = document.getElementById('main-door');
+            const scene = document.getElementById('door-scene');
+            
+            door.classList.add('open'); // 門旋轉
+            
+            // 2秒後移除門的場景，露出後面的 3D
+            setTimeout(() => {
+                scene.classList.add('fade-out');
+            }, 1000);
         }
-    }
-    </script>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // 1. 初始化場景
+        // --- Three.js 聖誕樹邏輯 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x010805);
-        scene.fog = new THREE.Fog(0x010805, 5, 25);
-
+        
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 3, 10);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        document.body.appendChild(
+        document.getElementById('three-container').appendChild(renderer.domElement);
+
+        const amb = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(amb);
+        const spot = new THREE.SpotLight(0xffd700, 2);
+        spot.position.set(5, 10, 5);
+        scene.add(spot);
+
+        // 聖誕樹
+        const treeGroup = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: 0x043927, roughness: 0.2, metalness: 0.5 });
+        for(let i = 0; i < 6; i++) {
+            const geo = new THREE.ConeGeometry(2 - i*0.3, 1.2, 12);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = i * 0.7;
+            treeGroup.add(mesh);
+        }
+        scene.add(treeGroup);
+
+        // 金箔雪花
+        const snowGeo = new THREE.BufferGeometry();
+        const snowCnt = 1000;
+        const posArr = new Float32Array(snowCnt * 3);
+        for(let i = 0; i < snowCnt * 3; i++) {
+            posArr[i] = (Math.random() - 0.5) * 20;
+        }
+        snowGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+        const snowMat = new THREE.PointsMaterial({ color: 0xFFD700, size: 0.05, transparent: true, opacity: 0.6 });
+        const snow = new THREE.Points(snowGeo, snowMat);
+        scene.add(snow);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            treeGroup.rotation.y += 0.01;
+            const positions = snowGeo.attributes.position.array;
+            for(let i = 1; i < positions.length; i += 3) {
+                positions[i] -= 0.03;
+                if(positions[i] < -5) positions[i] = 10;
+            }
+            snowGeo.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
