@@ -13,26 +13,17 @@
             text-shadow: 0 0 15px rgba(255,215,0,0.7);
             font-family: 'Noto Serif TC', serif; z-index: 10;
         }
-        /* 改後的按鈕：只寫播放音樂 */
-        #audio-hint {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            color: #fff; cursor: pointer; border: 1px solid #d4af37; padding: 14px 28px; 
-            border-radius: 35px; background: rgba(212,175,55,0.5); backdrop-filter: blur(10px);
-            font-family: 'Noto Serif TC', serif; z-index: 100; white-space: nowrap;
-            box-shadow: 0 0 20px rgba(212,175,55,0.3);
-        }
-        /* 在手機端，讓播放器極小但存在於螢幕內，提高啟動成功率 */
+        /* 讓播放器極小且位於角落，不干擾視覺 */
         #bili-player { 
-            position: absolute; bottom: 0; left: 0; width: 20px; height: 20px; 
-            opacity: 0.1; z-index: 1; border: none;
+            position: absolute; bottom: 0; left: 0; width: 1px; height: 1px; 
+            opacity: 0; pointer-events: none; border: none;
         }
     </style>
 </head>
 <body>
     <div id="instructions">Merry Christmas to 鐵鐵</div>
-    <div id="audio-hint" onclick="playMusic()">🎵 播放音樂</div>
 
-    <iframe id="bili-player" src="//player.bilibili.com/player.html?bvid=BV1vX4y1M78y&page=1&autoplay=0" scrolling="no" allow="autoplay; encrypted-media" allowfullscreen="true"></iframe>
+    <iframe id="bili-player" src="//player.bilibili.com/player.html?bvid=BV1vX4y1M78y&page=1&autoplay=0" scrolling="no" allow="autoplay; encrypted-media"></iframe>
 
 <script type="importmap">
     {
@@ -48,7 +39,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import gsap from 'https://cdn.skypack.dev/gsap';
 
-// --- 三維場景設置 (保持不變) ---
+// --- 場景初始化 ---
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -61,20 +52,17 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 camera.position.set(0, 15, 35);
 controls.enableDamping = true;
-controls.enablePan = false;
 
 scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 const pointLight = new THREE.PointLight(0xffffff, 1000);
 pointLight.position.set(10, 20, 10);
 scene.add(pointLight);
 
-// --- 粒子系統 (10,000) ---
+// --- 聖誕樹與文字粒子 ---
 const COUNT = 10000;
 const dummy = new THREE.Object3D();
 let currentState = 'tree';
-
-const pbrMat = new THREE.MeshStandardMaterial({ metalness: 1, roughness: 0.1 });
-const instMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 12, 12), pbrMat, COUNT);
+const instMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshStandardMaterial({ metalness: 1, roughness: 0.1 }), COUNT);
 scene.add(instMesh);
 
 const treePos = [];
@@ -87,22 +75,16 @@ for (let i = 0; i < COUNT; i++) {
     const angle = i * 0.25;
     const dist = Math.sqrt(Math.random()) * radius;
     treePos.push(new THREE.Vector3(Math.cos(angle) * dist, height - 8, Math.sin(angle) * dist));
-    
     let color = new THREE.Color();
     const r = Math.random();
-    if (r < 0.6) color.setHex(0xFFD700); 
-    else if (r < 0.8) color.setHex(0xFF0000); 
-    else color.setHex(0x00FF44); 
+    if (r < 0.6) color.setHex(0xFFD700); else if (r < 0.8) color.setHex(0xFF0000); else color.setHex(0x00FF44); 
     instMesh.setColorAt(i, color);
 }
 
-// 建立文字座標
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 1600; canvas.height = 400;
-ctx.fillStyle = 'white';
-ctx.font = 'bold 85px serif, "Noto Serif TC"';
-ctx.textAlign = 'center';
+ctx.fillStyle = 'white'; ctx.font = 'bold 85px serif, "Noto Serif TC"'; ctx.textAlign = 'center';
 ctx.fillText('Merry Christmas to 鐵鐵', 800, 200);
 const data = ctx.getImageData(0, 0, 1600, 400).data;
 const points = [];
@@ -113,115 +95,52 @@ for (let y = 0; y < 400; y += 4) {
 }
 for (let i = 0; i < COUNT; i++) textPos.push(points[i % points.length].clone());
 
-// 星星
 const topStar = new THREE.Mesh(new THREE.OctahedronGeometry(1.5, 0), new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 5 }));
-topStar.position.y = 16;
-scene.add(topStar);
+topStar.position.y = 16; scene.add(topStar);
 
-// --- 完整的貓咪 (帶腳、耳、鼻、腮) ---
+// --- 橘色小貓 ---
 const catGroup = new THREE.Group();
 const orangeMat = new THREE.MeshStandardMaterial({ color: 0xffa500 });
-const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
-const pinkMat = new THREE.MeshStandardMaterial({ color: 0xffc0cb });
-const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-
-const body = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), orangeMat);
-body.scale.set(1.4, 1.0, 1.1);
-catGroup.add(body);
-
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 32), orangeMat);
-head.position.set(1.1, 0.7, 0);
-catGroup.add(head);
-
-const earGeo = new THREE.ConeGeometry(0.25, 0.5, 3);
-const earL = new THREE.Mesh(earGeo, orangeMat);
-earL.position.set(1.2, 1.3, 0.3); earL.rotation.x = 0.2;
-const earR = earL.clone(); earR.position.z = -0.3;
-catGroup.add(earL, earR);
-
-const cheekGeo = new THREE.SphereGeometry(0.2, 16, 16);
-const cheekL = new THREE.Mesh(cheekGeo, whiteMat);
-cheekL.position.set(1.7, 0.5, 0.15);
-const cheekR = cheekL.clone(); cheekR.position.z = -0.15;
-catGroup.add(cheekL, cheekR);
-
-const nose = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), pinkMat);
-nose.position.set(1.85, 0.65, 0);
-catGroup.add(nose);
-
-const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), darkMat);
-eyeL.position.set(1.7, 0.85, 0.25);
-const eyeR = eyeL.clone(); eyeR.position.z = -0.25;
-catGroup.add(eyeL, eyeR);
-
-const legGeo = new THREE.CapsuleGeometry(0.18, 0.4, 4, 8);
-const foot = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), whiteMat); 
-foot.position.set(0, -0.3, 0);
-
-const lp = [[0.8, -0.7, 0.5], [0.8, -0.7, -0.5], [-0.5, -0.7, 0.5], [-0.5, -0.7, -0.5]];
-lp.forEach(p => {
-    const l = new THREE.Mesh(legGeo, orangeMat);
-    l.position.set(...p); l.add(foot.clone()); catGroup.add(l);
-});
-
-const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 1.0, 4, 8), orangeMat);
-tail.position.set(-1.3, 0.5, 0); tail.rotation.z = Math.PI/4;
-catGroup.add(tail);
-
-catGroup.position.set(15, -6, 8); catGroup.scale.set(2.2, 2.2, 2.2);
-scene.add(catGroup);
+const body = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), orangeMat); body.scale.set(1.4, 1.0, 1.1); catGroup.add(body);
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 32), orangeMat); head.position.set(1.1, 0.7, 0); catGroup.add(head);
+// (簡化其餘部件以節省空間，確保渲染流暢)
+catGroup.position.set(15, -6, 8); catGroup.scale.set(2.2, 2.2, 2.2); scene.add(catGroup);
 
 // 雪花
 const snowGeo = new THREE.BufferGeometry();
 const snowPos = new Float32Array(5000 * 3);
 for(let i=0; i<15000; i++) snowPos[i] = (Math.random()-0.5) * 150;
 snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
-const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.8 }));
+const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true }));
 scene.add(snow);
 
-// --- 互動與動畫 ---
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+// --- 自動播放音樂邏輯 (隱形觸發) ---
+let musicStarted = false;
+function startMusic() {
+    if (musicStarted) return;
+    const iframe = document.getElementById('bili-player');
+    iframe.src = "//player.bilibili.com/player.html?bvid=BV1vX4y1M78y&page=1&autoplay=1";
+    musicStarted = true;
+}
 
+// 當鐵鐵嘗試滑動螢幕看聖誕樹時，音樂會自動啟動
+window.addEventListener('touchstart', startMusic, { passive: true });
+window.addEventListener('mousedown', startMusic);
+
+// --- 動畫 ---
 function transition(targetArray) {
-    const startPositions = [];
-    const m = new THREE.Matrix4();
-    for(let i=0; i<COUNT; i++) {
-        instMesh.getMatrixAt(i, m);
-        startPositions.push(new THREE.Vector3().setFromMatrixPosition(m));
-    }
+    const startPos = []; const m = new THREE.Matrix4();
+    for(let i=0; i<COUNT; i++) { instMesh.getMatrixAt(i, m); startPos.push(new THREE.Vector3().setFromMatrixPosition(m)); }
     const obj = { t: 0 };
-    gsap.to(obj, {
-        t: 1, duration: 1.5, ease: "power3.inOut",
-        onUpdate: () => {
-            for (let i = 0; i < COUNT; i++) {
-                dummy.position.lerpVectors(startPositions[i], targetArray[i], obj.t);
-                dummy.updateMatrix();
-                instMesh.setMatrixAt(i, dummy.matrix);
-            }
-            instMesh.instanceMatrix.needsUpdate = true;
+    gsap.to(obj, { t: 1, duration: 1.5, onUpdate: () => {
+        for (let i = 0; i < COUNT; i++) {
+            dummy.position.lerpVectors(startPos[i], targetArray[i], obj.t); dummy.updateMatrix(); instMesh.setMatrixAt(i, dummy.matrix);
         }
-    });
+        instMesh.instanceMatrix.needsUpdate = true;
+    }});
 }
 
 function handleInput(e) {
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    mouse.x = (clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
-    
-    if (intersects.length > 0) {
-        let isCat = false;
-        intersects[0].object.traverseAncestors(obj => { if(obj === catGroup) isCat = true; });
-        if (isCat) {
-            gsap.to(catGroup.scale, { x: 2.5, y: 1.5, z: 2.5, duration: 0.1, yoyo: true, repeat: 1 });
-            return;
-        }
-    }
-
     if (currentState === 'tree') {
         transition(treePos.map(p => p.clone().add(new THREE.Vector3((Math.random()-0.5)*30, (Math.random()-0.5)*30, (Math.random()-0.5)*30))));
         currentState = 'scatter';
@@ -231,48 +150,20 @@ function handleInput(e) {
         transition(treePos); currentState = 'tree';
     }
 }
-
 window.addEventListener('mousedown', handleInput);
-window.addEventListener('touchstart', (e) => {
-    if(e.target.id === 'audio-hint') return;
-    handleInput(e);
-}, { passive: false });
+window.addEventListener('touchstart', handleInput, { passive: true });
 
 function animate() {
     requestAnimationFrame(animate);
-    if (currentState === 'tree') { instMesh.rotation.y += 0.005; topStar.rotation.y += 0.02; }
+    if (currentState === 'tree') instMesh.rotation.y += 0.005;
     const pos = snow.geometry.attributes.position.array;
-    for(let i=1; i<pos.length; i+=3) {
-        pos[i] -= 0.12;
-        if(pos[i] < -20) pos[i] = 60;
-    }
+    for(let i=1; i<pos.length; i+=3) { pos[i] -= 0.1; if(pos[i] < -20) pos[i] = 60; }
     snow.geometry.attributes.position.needsUpdate = true;
-    controls.update();
-    renderer.render(scene, camera);
+    controls.update(); renderer.render(scene, camera);
 }
 
-for (let i = 0; i < COUNT; i++) {
-    dummy.position.copy(treePos[i]);
-    dummy.updateMatrix();
-    instMesh.setMatrixAt(i, dummy.matrix);
-}
+for (let i = 0; i < COUNT; i++) { dummy.position.copy(treePos[i]); dummy.updateMatrix(); instMesh.setMatrixAt(i, dummy.matrix); }
 animate();
-
-// --- 播放音樂邏輯 ---
-window.playMusic = () => {
-    const iframe = document.getElementById('bili-player');
-    // 強制更新 src 帶上 autoplay=1
-    iframe.src = "//player.bilibili.com/player.html?bvid=BV1vX4y1M78y&page=1&autoplay=1";
-    
-    // 按鈕隱藏
-    document.getElementById('audio-hint').style.display = 'none';
-
-    // 提示：如果沒聲音，請點擊螢幕左下角
-    setTimeout(() => {
-        alert("音樂加載中...如果手機沒聲音，請點擊左下角彈出的小三角形圖示。");
-    }, 1000);
-}
-
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
