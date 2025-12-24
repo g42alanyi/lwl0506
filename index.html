@@ -8,29 +8,26 @@
             font-family: 'Noto Serif TC';
             src: url('https://fonts.gstatic.com/s/notoseriftc/v19/XLYgR5vtWpzzTfPR--iJ_y2W4k_B3N-Y76kP_D_A7_N.woff2') format('woff2');
         }
-        body { margin: 0; overflow: hidden; background: #020205; }
+        body { margin: 0; overflow: hidden; background: #010103; }
         #instructions {
             position: absolute; top: 40px; width: 100%; text-align: center;
-            color: #f1d37e; font-size: clamp(24px, 5vw, 40px); pointer-events: none; 
-            text-shadow: 0 0 20px rgba(212,175,55,0.8);
+            color: #ffefad; font-size: 32px; pointer-events: none; 
+            text-shadow: 0 0 20px rgba(255,215,0,0.8);
             font-family: 'Times New Roman', 'Noto Serif TC', serif;
-            letter-spacing: 2px;
-            z-index: 10;
+            letter-spacing: 2px; z-index: 10;
         }
         #audio-hint {
             position: absolute; bottom: 30px; left: 30px; color: #fff; cursor: pointer;
             border: 1px solid #d4af37; padding: 12px 24px; border-radius: 30px;
-            background: rgba(212,175,55,0.1);
-            font-family: 'Noto Serif TC', serif;
-            backdrop-filter: blur(8px);
-            z-index: 100;
+            background: rgba(212,175,55,0.2); font-family: 'Noto Serif TC', serif;
+            backdrop-filter: blur(10px); z-index: 100;
         }
     </style>
 </head>
 <body>
 
 <div id="instructions">Merry Christmas to 鐵鐵</div>
-<div id="audio-hint" onclick="playMusic()">🎵 開啟音樂與奇蹟</div>
+<div id="audio-hint" onclick="playMusic()">🎵 點擊點亮聖誕節</div>
 
 <script type="importmap">
     {
@@ -46,87 +43,75 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import gsap from 'https://cdn.skypack.dev/gsap';
 
-// --- 場景設置 ---
+// --- 初始化渲染器 ---
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.5; // 提高曝光讓畫面更亮
+renderer.toneMappingExposure = 1.8; // 顯著提高亮度
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-camera.position.set(0, 12, 35);
-controls.target.set(0, 4, 0);
+camera.position.set(0, 10, 35);
+controls.target.set(0, 5, 0);
 controls.enableDamping = true;
 
-// --- 燈光 (極致亮度) ---
-scene.add(new THREE.AmbientLight(0xffffff, 0.8)); // 基礎環境光調高
+// --- 燈光系統 (極亮) ---
+scene.add(new THREE.AmbientLight(0xffffff, 1.0)); 
+const sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
+sunLight.position.set(5, 20, 10);
+scene.add(sunLight);
 
-const topLight = new THREE.SpotLight(0xffffff, 2000);
-topLight.position.set(0, 30, 10);
-topLight.angle = 0.6;
-scene.add(topLight);
+const pointLight1 = new THREE.PointLight(0xffd700, 1000, 100);
+pointLight1.position.set(-10, 10, 10);
+scene.add(pointLight1);
 
-const rimLight = new THREE.PointLight(0xffffff, 1000); // 背光增加輪廓感
-rimLight.position.set(0, 10, -20);
-scene.add(rimLight);
-
-const goldLight = new THREE.PointLight(0xffd700, 800);
-goldLight.position.set(-15, 5, 10);
-scene.add(goldLight);
-
-// --- 聖誕樹 (15,000 粒子) ---
+// --- 聖誕樹 15,000 粒子 ---
 const COUNT = 15000;
 const dummy = new THREE.Object3D();
 let currentState = 'tree';
 
-const pbrMat = new THREE.MeshStandardMaterial({ 
+// 強化的 PBR 材質
+const treeMat = new THREE.MeshStandardMaterial({ 
     metalness: 1.0, 
-    roughness: 0.1, 
-    emissive: 0x221100, // 微弱自發光增加亮度
-    emissiveIntensity: 0.5
+    roughness: 0.1,
+    emissiveIntensity: 0.2
 });
 
 const sphereGeo = new THREE.SphereGeometry(0.12, 8, 8);
-const boxGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
-
-const instSpheres = new THREE.InstancedMesh(sphereGeo, pbrMat, COUNT / 2);
-const instBoxes = new THREE.InstancedMesh(boxGeo, pbrMat, COUNT / 2);
-scene.add(instSpheres, instBoxes);
+const treeMesh = new THREE.InstancedMesh(sphereGeo, treeMat, COUNT);
+scene.add(treeMesh);
 
 const treePos = [];
 const textPos = [];
 
-// 生成樹結構
+// 生成樹座標與顏色
 for (let i = 0; i < COUNT; i++) {
     const ratio = i / COUNT;
     const height = ratio * 22;
     const radius = (1 - ratio) * 9;
     const angle = i * 0.2;
     const dist = Math.sqrt(Math.random()) * radius;
-    const pos = new THREE.Vector3(Math.cos(angle) * dist, height - 8, Math.sin(angle) * dist);
-    treePos.push(pos);
+    treePos.push(new THREE.Vector3(Math.cos(angle) * dist, height - 8, Math.sin(angle) * dist));
 
+    // 嚴格分配顏色
     const color = new THREE.Color();
     const r = Math.random();
-    if (r < 0.6) color.setHex(0xFFD700); // 明亮金
-    else if (r < 0.8) color.setHex(0xFF0000); // 鮮紅
-    else color.setHex(0x00FF44); // 鮮綠
-    
-    const target = (i < COUNT/2) ? instSpheres : instBoxes;
-    target.setColorAt(i % (COUNT/2), color);
+    if (r < 0.5) color.setHex(0xFFD700); // 土豪金
+    else if (r < 0.8) color.setHex(0xDD0000); // 鮮紅
+    else color.setHex(0x00AA44); // 聖誕綠
+    treeMesh.setColorAt(i, color);
 }
 
-// --- 文字座標 (Serif Font) ---
+// --- 文字座標 ---
 function initText() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 1600; canvas.height = 400;
     ctx.fillStyle = 'white';
-    // 優先使用 Serif 字體
-    ctx.font = 'bold 100px "Times New Roman", "Noto Serif TC", serif';
+    ctx.font = 'bold 90px "Times New Roman", "Noto Serif TC", serif';
     ctx.textAlign = 'center';
     ctx.fillText('Merry Christmas to 鐵鐵', 800, 200);
     
@@ -135,7 +120,7 @@ function initText() {
     for (let y = 0; y < 400; y += 4) {
         for (let x = 0; x < 1600; x += 4) {
             if (data[(y * 1600 + x) * 4] > 128) {
-                pts.push(new THREE.Vector3((x - 800) * 0.045, (200 - y) * 0.045 + 5, 0));
+                pts.push(new THREE.Vector3((x - 800) * 0.05, (200 - y) * 0.05 + 6, 0));
             }
         }
     }
@@ -143,60 +128,60 @@ function initText() {
 }
 initText();
 
-// --- 樹頂 ---
-const topStar = new THREE.Mesh(
-    new THREE.OctahedronGeometry(1.5, 0), 
-    new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 5 })
-);
-topStar.position.y = 15;
-scene.add(topStar);
+// --- 樹頂大星 ---
+const star = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 5 }));
+star.position.y = 15;
+scene.add(star);
 
-// --- 橘貓 (移至右下角，避免誤觸) ---
-const catGroup = new THREE.Group();
-const orangeMat = new THREE.MeshStandardMaterial({ color: 0xff9900 });
-const catBody = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), orangeMat);
-catBody.scale.set(1.4, 0.9, 1);
-catGroup.add(catBody);
-const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), orangeMat);
-catHead.position.set(1.2, 0.6, 0);
-catGroup.add(catHead);
-// 設置在畫面右側較遠處
-catGroup.position.set(18, -7, 10); 
-catGroup.scale.set(2, 2, 2);
-scene.add(catGroup);
+// --- 獨立的橘貓物件 (分開構建，避免被 Instance 影響) ---
+const cat = new THREE.Group();
+const orange = new THREE.MeshStandardMaterial({ color: 0xff8800, roughness: 0.6 });
+const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+
+const body = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 20), orange);
+body.scale.set(1.3, 0.8, 1);
+cat.add(body);
+
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 20), orange);
+head.position.set(1.1, 0.6, 0);
+cat.add(head);
+
+const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.8), orange);
+tail.position.set(-1.1, 0.5, 0);
+tail.rotation.z = Math.PI/4;
+cat.add(tail);
+
+cat.position.set(18, -7, 10); // 確保遠離樹
+cat.scale.set(2.5, 2.5, 2.5);
+scene.add(cat);
 
 // --- 雪花 ---
 const snowGeo = new THREE.BufferGeometry();
-const snowPos = new Float32Array(8000 * 3);
-for(let i=0; i<24000; i++) snowPos[i] = (Math.random()-0.5)*120;
-snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
-const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.5 }));
+const snowBuf = new Float32Array(8000 * 3);
+for(let i=0; i<24000; i++) snowBuf[i] = (Math.random()-0.5)*150;
+snowGeo.setAttribute('position', new THREE.BufferAttribute(snowBuf, 3));
+const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.7 }));
 scene.add(snow);
 
-// --- 動態動畫 ---
+// --- 動態邏輯 ---
 function transition(targetArray) {
-    const startPositions = [];
-    [instSpheres, instBoxes].forEach(mesh => {
-        const m = new THREE.Matrix4();
-        for(let i=0; i<COUNT/2; i++) {
-            mesh.getMatrixAt(i, m);
-            startPositions.push(new THREE.Vector3().setFromMatrixPosition(m));
-        }
-    });
+    const currentPos = [];
+    const m = new THREE.Matrix4();
+    for(let i=0; i<COUNT; i++) {
+        treeMesh.getMatrixAt(i, m);
+        currentPos.push(new THREE.Vector3().setFromMatrixPosition(m));
+    }
 
     const obj = { t: 0 };
     gsap.to(obj, {
-        t: 1, duration: 2, ease: "power3.inOut",
+        t: 1, duration: 2.2, ease: "power4.inOut",
         onUpdate: () => {
             for (let i = 0; i < COUNT; i++) {
-                const mesh = i < COUNT/2 ? instSpheres : instBoxes;
-                const idx = i % (COUNT/2);
-                dummy.position.lerpVectors(startPositions[i], targetArray[i], obj.t);
+                dummy.position.lerpVectors(currentPos[i], targetArray[i], obj.t);
                 dummy.updateMatrix();
-                mesh.setMatrixAt(idx, dummy.matrix);
+                treeMesh.setMatrixAt(i, dummy.matrix);
             }
-            instSpheres.instanceMatrix.needsUpdate = true;
-            instBoxes.instanceMatrix.needsUpdate = true;
+            treeMesh.instanceMatrix.needsUpdate = true;
         }
     });
 }
@@ -212,18 +197,16 @@ window.addEventListener('mousedown', (e) => {
 
     const intersects = raycaster.intersectObjects(scene.children, true);
     if (intersects.length > 0) {
-        let hitCat = false;
-        intersects[0].object.traverseAncestors(a => { if(a === catGroup) hitCat = true; });
-        
-        if (hitCat) {
-            gsap.to(catGroup.scale, { x: 2.2, y: 1.8, z: 2.2, duration: 0.1, yoyo: true, repeat: 1 });
+        let isCat = false;
+        intersects[0].object.traverseAncestors(a => { if(a === cat) isCat = true; });
+        if (isCat) {
+            gsap.to(cat.scale, { x: 2.8, y: 2.2, z: 2.8, duration: 0.1, yoyo: true, repeat: 1 });
             return;
         }
     }
 
-    // 狀態循環
     if (currentState === 'tree') {
-        const scat = treePos.map(p => p.clone().add(new THREE.Vector3((Math.random()-0.5)*30, (Math.random()-0.5)*30, (Math.random()-0.5)*30)));
+        const scat = treePos.map(p => p.clone().add(new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40)));
         transition(scat); currentState = 'scatter';
     } else if (currentState === 'scatter') {
         transition(textPos); currentState = 'text';
@@ -235,15 +218,11 @@ window.addEventListener('mousedown', (e) => {
 // --- 渲染 ---
 function animate() {
     requestAnimationFrame(animate);
-    if (currentState === 'tree') {
-        instSpheres.rotation.y += 0.005;
-        instBoxes.rotation.y += 0.005;
-    }
+    if (currentState === 'tree') treeMesh.rotation.y += 0.005;
     
-    // 雪花下落
     const pos = snow.geometry.attributes.position.array;
     for(let i=1; i<pos.length; i+=3) {
-        pos[i] -= 0.05;
+        pos[i] -= 0.06;
         if(pos[i] < -20) pos[i] = 50;
     }
     snow.geometry.attributes.position.needsUpdate = true;
@@ -252,13 +231,13 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// 初始化
+// 初始化位置
 for (let i = 0; i < COUNT; i++) {
-    const mesh = i < COUNT/2 ? instSpheres : instBoxes;
     dummy.position.copy(treePos[i]);
     dummy.updateMatrix();
-    mesh.setMatrixAt(i % (COUNT/2), dummy.matrix);
+    treeMesh.setMatrixAt(i, dummy.matrix);
 }
+treeMesh.instanceMatrix.needsUpdate = true;
 animate();
 
 // 音樂播放
