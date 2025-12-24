@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>豪華 1.5萬粒子 3D 金屬聖誕樹</title>
+    <title>Merry Christmas to 鐵鐵</title>
     <style>
         @font-face {
             font-family: 'Noto Serif TC';
@@ -10,28 +10,27 @@
         }
         body { margin: 0; overflow: hidden; background: #020205; }
         #instructions {
-            position: absolute; top: 30px; width: 100%; text-align: center;
-            color: #f1d37e; font-size: 36px; pointer-events: none; 
+            position: absolute; top: 40px; width: 100%; text-align: center;
+            color: #f1d37e; font-size: clamp(24px, 5vw, 40px); pointer-events: none; 
             text-shadow: 0 0 20px rgba(212,175,55,0.8);
-            font-family: 'Noto Serif TC', serif;
-            letter-spacing: 4px;
+            font-family: 'Times New Roman', 'Noto Serif TC', serif;
+            letter-spacing: 2px;
+            z-index: 10;
         }
         #audio-hint {
-            position: absolute; bottom: 20px; left: 20px; color: #fff; cursor: pointer;
-            border: 1px solid #d4af37; padding: 12px 20px; border-radius: 30px;
+            position: absolute; bottom: 30px; left: 30px; color: #fff; cursor: pointer;
+            border: 1px solid #d4af37; padding: 12px 24px; border-radius: 30px;
             background: rgba(212,175,55,0.1);
             font-family: 'Noto Serif TC', serif;
-            transition: all 0.3s;
+            backdrop-filter: blur(8px);
             z-index: 100;
-            backdrop-filter: blur(5px);
         }
-        #audio-hint:hover { background: rgba(212,175,55,0.3); transform: scale(1.05); }
     </style>
 </head>
 <body>
 
-<div id="instructions">✨ 鐵鐵 聖誕快樂 ✨</div>
-<div id="audio-hint" onclick="playMusic()">🎵 開啟音樂與奇蹟時刻</div>
+<div id="instructions">Merry Christmas to 鐵鐵</div>
+<div id="audio-hint" onclick="playMusic()">🎵 開啟音樂與奇蹟</div>
 
 <script type="importmap">
     {
@@ -47,171 +46,152 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import gsap from 'https://cdn.skypack.dev/gsap';
 
-// --- 場景初始化 ---
+// --- 場景設置 ---
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x020205, 0.015);
-
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.5; // 提高曝光讓畫面更亮
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-camera.position.set(0, 15, 40);
+camera.position.set(0, 12, 35);
+controls.target.set(0, 4, 0);
 controls.enableDamping = true;
-controls.autoRotate = false;
 
-// --- 燈光優化 (強化反光感) ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-scene.add(ambientLight);
+// --- 燈光 (極致亮度) ---
+scene.add(new THREE.AmbientLight(0xffffff, 0.8)); // 基礎環境光調高
 
-const mainLight = new THREE.SpotLight(0xffffff, 1000);
-mainLight.position.set(20, 40, 20);
-mainLight.angle = 0.5;
-scene.add(mainLight);
+const topLight = new THREE.SpotLight(0xffffff, 2000);
+topLight.position.set(0, 30, 10);
+topLight.angle = 0.6;
+scene.add(topLight);
 
-const colorLight1 = new THREE.PointLight(0xd4af37, 500); // 金光
-colorLight1.position.set(-15, 10, 15);
-scene.add(colorLight1);
+const rimLight = new THREE.PointLight(0xffffff, 1000); // 背光增加輪廓感
+rimLight.position.set(0, 10, -20);
+scene.add(rimLight);
 
-const colorLight2 = new THREE.PointLight(0xff0000, 300); // 紅光
-colorLight2.position.set(15, 5, -15);
-scene.add(colorLight2);
+const goldLight = new THREE.PointLight(0xffd700, 800);
+goldLight.position.set(-15, 5, 10);
+scene.add(goldLight);
 
 // --- 聖誕樹 (15,000 粒子) ---
-const INSTANCE_COUNT = 15000; 
+const COUNT = 15000;
 const dummy = new THREE.Object3D();
 let currentState = 'tree';
 
-// 混合材質：球體與立方體
-const goldMat = new THREE.MeshStandardMaterial({ 
-    color: 0xD4AF37, metalness: 1, roughness: 0.15, 
-    envMapIntensity: 1 
+const pbrMat = new THREE.MeshStandardMaterial({ 
+    metalness: 1.0, 
+    roughness: 0.1, 
+    emissive: 0x221100, // 微弱自發光增加亮度
+    emissiveIntensity: 0.5
 });
 
 const sphereGeo = new THREE.SphereGeometry(0.12, 8, 8);
-const boxGeo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+const boxGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
 
-// 為了視覺多樣性，我們創建兩個 InstancedMesh
-const instSpheres = new THREE.InstancedMesh(sphereGeo, goldMat, INSTANCE_COUNT / 2);
-const instBoxes = new THREE.InstancedMesh(boxGeo, goldMat, INSTANCE_COUNT / 2);
+const instSpheres = new THREE.InstancedMesh(sphereGeo, pbrMat, COUNT / 2);
+const instBoxes = new THREE.InstancedMesh(boxGeo, pbrMat, COUNT / 2);
 scene.add(instSpheres, instBoxes);
 
 const treePos = [];
 const textPos = [];
 
-// 生成樹的座標 (利用黃金螺旋與隨機擾動)
-function generateTreeLayout() {
-    for (let i = 0; i < INSTANCE_COUNT; i++) {
-        const ratio = i / INSTANCE_COUNT;
-        const height = ratio * 25; // 樹的高度
-        const maxRadius = (1 - ratio) * 10; // 底部寬
-        
-        // 核心分佈算法：讓中心更厚實
-        const angle = i * 0.15;
-        const dist = Math.sqrt(Math.random()) * maxRadius; 
-        const x = Math.cos(angle) * dist;
-        const z = Math.sin(angle) * dist;
-        const y = height - 8;
+// 生成樹結構
+for (let i = 0; i < COUNT; i++) {
+    const ratio = i / COUNT;
+    const height = ratio * 22;
+    const radius = (1 - ratio) * 9;
+    const angle = i * 0.2;
+    const dist = Math.sqrt(Math.random()) * radius;
+    const pos = new THREE.Vector3(Math.cos(angle) * dist, height - 8, Math.sin(angle) * dist);
+    treePos.push(pos);
 
-        const pos = new THREE.Vector3(x, y, z);
-        treePos.push(pos);
-
-        // 隨機顏色分佈
-        const color = new THREE.Color();
-        const rand = Math.random();
-        if (rand < 0.5) color.setHex(0xD4AF37); // 土豪金
-        else if (rand < 0.8) color.setHex(0xB22222); // 深紅寶石
-        else color.setHex(0x006400); // 聖誕綠
-
-        const targetMesh = (i < INSTANCE_COUNT/2) ? instSpheres : instBoxes;
-        const localIdx = i % (INSTANCE_COUNT/2);
-        targetMesh.setColorAt(localIdx, color);
-    }
+    const color = new THREE.Color();
+    const r = Math.random();
+    if (r < 0.6) color.setHex(0xFFD700); // 明亮金
+    else if (r < 0.8) color.setHex(0xFF0000); // 鮮紅
+    else color.setHex(0x00FF44); // 鮮綠
+    
+    const target = (i < COUNT/2) ? instSpheres : instBoxes;
+    target.setColorAt(i % (COUNT/2), color);
 }
-generateTreeLayout();
 
-// --- 文字座標 (加強密度) ---
-function createTextPoints() {
+// --- 文字座標 (Serif Font) ---
+function initText() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 1200; canvas.height = 300;
+    canvas.width = 1600; canvas.height = 400;
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 100px "Noto Serif TC", serif';
+    // 優先使用 Serif 字體
+    ctx.font = 'bold 100px "Times New Roman", "Noto Serif TC", serif';
     ctx.textAlign = 'center';
-    ctx.fillText('鐵鐵 聖誕快樂', 600, 150);
+    ctx.fillText('Merry Christmas to 鐵鐵', 800, 200);
     
-    const imgData = ctx.getImageData(0, 0, 1200, 300).data;
-    const tempPts = [];
-    for (let y = 0; y < 300; y += 3) { // 提高採樣率
-        for (let x = 0; x < 1200; x += 3) {
-            if (imgData[(y * 1200 + x) * 4] > 150) {
-                tempPts.push(new THREE.Vector3((x - 600) * 0.06, (150 - y) * 0.06 + 5, 0));
+    const data = ctx.getImageData(0, 0, 1600, 400).data;
+    const pts = [];
+    for (let y = 0; y < 400; y += 4) {
+        for (let x = 0; x < 1600; x += 4) {
+            if (data[(y * 1600 + x) * 4] > 128) {
+                pts.push(new THREE.Vector3((x - 800) * 0.045, (200 - y) * 0.045 + 5, 0));
             }
         }
     }
-    for (let i = 0; i < INSTANCE_COUNT; i++) {
-        textPos.push(tempPts[i % tempPts.length].clone().add(new THREE.Vector3(
-            (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1
-        )));
-    }
+    for (let i = 0; i < COUNT; i++) textPos.push(pts[i % pts.length].clone());
 }
-createTextPoints();
+initText();
 
-// --- 樹頂大星 ---
-const star = new THREE.Mesh(
+// --- 樹頂 ---
+const topStar = new THREE.Mesh(
     new THREE.OctahedronGeometry(1.5, 0), 
-    new THREE.MeshStandardMaterial({ color: 0xFFFF00, emissive: 0xFFCC00, emissiveIntensity: 2 })
+    new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 5 })
 );
-star.position.y = 17.5;
-scene.add(star);
+topStar.position.y = 15;
+scene.add(topStar);
 
-// --- 橘貓 (精簡版，適合高密度場景) ---
-const cat = new THREE.Group();
-const orangeMat = new THREE.MeshStandardMaterial({ color: 0xffa500 });
-const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 1.2, 4, 8), orangeMat);
-body.rotation.z = Math.PI/2;
-cat.add(body);
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), orangeMat);
-head.position.set(1.2, 0.6, 0);
-cat.add(head);
-cat.position.set(12, -7.5, 5);
-cat.scale.set(1.5, 1.5, 1.5);
-scene.add(cat);
+// --- 橘貓 (移至右下角，避免誤觸) ---
+const catGroup = new THREE.Group();
+const orangeMat = new THREE.MeshStandardMaterial({ color: 0xff9900 });
+const catBody = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), orangeMat);
+catBody.scale.set(1.4, 0.9, 1);
+catGroup.add(catBody);
+const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16), orangeMat);
+catHead.position.set(1.2, 0.6, 0);
+catGroup.add(catHead);
+// 設置在畫面右側較遠處
+catGroup.position.set(18, -7, 10); 
+catGroup.scale.set(2, 2, 2);
+scene.add(catGroup);
 
-// --- 雪花粒子 (10,000 顆) ---
+// --- 雪花 ---
 const snowGeo = new THREE.BufferGeometry();
-const snowBuf = new Float32Array(10000 * 3);
-for(let i=0; i<30000; i++) snowBuf[i] = (Math.random()-0.5)*150;
-snowGeo.setAttribute('position', new THREE.BufferAttribute(snowBuf, 3));
-const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.6 }));
+const snowPos = new Float32Array(8000 * 3);
+for(let i=0; i<24000; i++) snowPos[i] = (Math.random()-0.5)*120;
+snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.5 }));
 scene.add(snow);
 
-// --- 核心動畫切換 ---
+// --- 動態動畫 ---
 function transition(targetArray) {
-    const obj = { t: 0 };
     const startPositions = [];
-    
-    // 紀錄當前所有位置
     [instSpheres, instBoxes].forEach(mesh => {
-        for(let i=0; i<INSTANCE_COUNT/2; i++) {
-            const m = new THREE.Matrix4();
+        const m = new THREE.Matrix4();
+        for(let i=0; i<COUNT/2; i++) {
             mesh.getMatrixAt(i, m);
             startPositions.push(new THREE.Vector3().setFromMatrixPosition(m));
         }
     });
 
+    const obj = { t: 0 };
     gsap.to(obj, {
-        t: 1, duration: 2.5, ease: "expo.inOut",
+        t: 1, duration: 2, ease: "power3.inOut",
         onUpdate: () => {
-            for (let i = 0; i < INSTANCE_COUNT; i++) {
-                const mesh = i < INSTANCE_COUNT/2 ? instSpheres : instBoxes;
-                const idx = i % (INSTANCE_COUNT/2);
+            for (let i = 0; i < COUNT; i++) {
+                const mesh = i < COUNT/2 ? instSpheres : instBoxes;
+                const idx = i % (COUNT/2);
                 dummy.position.lerpVectors(startPositions[i], targetArray[i], obj.t);
-                if(currentState !== 'tree') dummy.rotation.y += 0.02; // 散開時帶點自轉
                 dummy.updateMatrix();
                 mesh.setMatrixAt(idx, dummy.matrix);
             }
@@ -221,11 +201,30 @@ function transition(targetArray) {
     });
 }
 
-// --- 交互監聽 ---
-window.addEventListener('mousedown', () => {
+// --- 點擊監聽 ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener('mousedown', (e) => {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    if (intersects.length > 0) {
+        let hitCat = false;
+        intersects[0].object.traverseAncestors(a => { if(a === catGroup) hitCat = true; });
+        
+        if (hitCat) {
+            gsap.to(catGroup.scale, { x: 2.2, y: 1.8, z: 2.2, duration: 0.1, yoyo: true, repeat: 1 });
+            return;
+        }
+    }
+
+    // 狀態循環
     if (currentState === 'tree') {
-        const scatter = treePos.map(p => p.clone().add(new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40)));
-        transition(scatter); currentState = 'scatter';
+        const scat = treePos.map(p => p.clone().add(new THREE.Vector3((Math.random()-0.5)*30, (Math.random()-0.5)*30, (Math.random()-0.5)*30)));
+        transition(scat); currentState = 'scatter';
     } else if (currentState === 'scatter') {
         transition(textPos); currentState = 'text';
     } else {
@@ -233,21 +232,19 @@ window.addEventListener('mousedown', () => {
     }
 });
 
-// --- 渲染迴圈 ---
+// --- 渲染 ---
 function animate() {
     requestAnimationFrame(animate);
-    
     if (currentState === 'tree') {
-        instSpheres.rotation.y += 0.003;
-        instBoxes.rotation.y += 0.003;
-        star.rotation.y += 0.02;
+        instSpheres.rotation.y += 0.005;
+        instBoxes.rotation.y += 0.005;
     }
-
+    
     // 雪花下落
     const pos = snow.geometry.attributes.position.array;
     for(let i=1; i<pos.length; i+=3) {
-        pos[i] -= 0.1;
-        if(pos[i] < -20) pos[i] = 60;
+        pos[i] -= 0.05;
+        if(pos[i] < -20) pos[i] = 50;
     }
     snow.geometry.attributes.position.needsUpdate = true;
 
@@ -255,29 +252,25 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// 初始化位置
-function initPositions() {
-    for (let i = 0; i < INSTANCE_COUNT; i++) {
-        const mesh = i < INSTANCE_COUNT/2 ? instSpheres : instBoxes;
-        const idx = i % (INSTANCE_COUNT/2);
-        dummy.position.copy(treePos[i]);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(idx, dummy.matrix);
-    }
+// 初始化
+for (let i = 0; i < COUNT; i++) {
+    const mesh = i < COUNT/2 ? instSpheres : instBoxes;
+    dummy.position.copy(treePos[i]);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i % (COUNT/2), dummy.matrix);
 }
-initPositions();
 animate();
 
-// 音樂處理 (略，同前)
+// 音樂播放
 const sound = new THREE.Audio(new THREE.AudioListener());
 window.playMusic = () => {
     if (!sound.isPlaying) {
-        new THREE.AudioLoader().load('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', (buf) => {
-            sound.setBuffer(buf); sound.setLoop(true); sound.setVolume(0.5); sound.play();
+        new THREE.AudioLoader().load('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', (b) => {
+            sound.setBuffer(b); sound.setLoop(true); sound.play();
         });
         document.getElementById('audio-hint').style.display = 'none';
     }
-};
+}
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
